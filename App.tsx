@@ -1,118 +1,146 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
+import React, { useState, PropsWithChildren } from 'react';
+import { Button, Image, Pressable, Text, TextInput, View, StyleSheet, FlatList } from 'react-native';
 
-import React from 'react';
-import type {PropsWithChildren} from 'react';
-import {
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  useColorScheme,
-  View,
-} from 'react-native';
-
-import {
-  Colors,
-  DebugInstructions,
-  Header,
-  LearnMoreLinks,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
-
-type SectionProps = PropsWithChildren<{
-  title: string;
-}>;
-
-function Section({children, title}: SectionProps): JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
-  return (
-    <View style={styles.sectionContainer}>
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: isDarkMode ? Colors.white : Colors.black,
-          },
-        ]}>
-        {title}
-      </Text>
-      <Text
-        style={[
-          styles.sectionDescription,
-          {
-            color: isDarkMode ? Colors.light : Colors.dark,
-          },
-        ]}>
-        {children}
-      </Text>
-    </View>
-  );
+enum Sender {
+  User,
+  Bot
 }
 
-function App(): JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
+type Message = {
+  sender: Sender,
+  content: string,
+  time: Date
+}
 
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
-  };
+type InputBoxProps = {
+  newText: string,
+  setNewText: (newText: string) => void,
+  messages: Message[],
+  setMessages: (messages: Message[]) => void
+}
+
+const InputBox = ({ newText, setNewText, messages, setMessages }: InputBoxProps) => {
+  return (
+    <View style={styles.inputBox}>
+      <TextInput
+        placeholder='Enter message...'
+        value={newText}
+        onChangeText={setNewText}
+        style={styles.textBox}
+      />
+      <Pressable
+        style={styles.sendButton}
+        onPress={() => {
+          setMessages([...messages, {
+            sender: Sender.User,
+            content: newText,
+            time: new Date()
+          }]);
+          setNewText('')
+        }}
+      >
+        <Text>Send</Text>
+      </Pressable>
+    </View>
+  )
+}
+
+const ChatItem = (message: Message) => {
+  return (
+    <View style={{ backgroundColor: 'teal' }}>
+      <View style={
+        [styles.chatItemWrapper,
+        message.sender == Sender.User && styles.chatItemWrapperUser]}
+      >
+        <Text style={styles.chatItem}>
+          {message.content}
+        </Text>
+      </View>
+    </View>
+  )
+}
+
+type chatListProps = {
+  messages: Message[],
+}
+
+const ChatList = ({ messages }: chatListProps) => {
+  return (
+    <FlatList
+      style={styles.chatList}
+      data={messages}
+      renderItem={({ item }) => ChatItem(item)}
+    />
+  )
+}
+
+const mockMessages: Message[] = [
+  {
+    sender: Sender.User,
+    content: 'Hi how are you?',
+    time: new Date()
+  },
+  {
+    sender: Sender.Bot,
+    content: 'I\'m fine',
+    time: new Date()
+  },
+  {
+    sender: Sender.User,
+    content: 'OK!!',
+    time: new Date()
+  }
+]
+
+const ChatBox = () => {
+  const [newText, setNewText] = useState('');
+  const [messages, setMessages] = useState<Message[]>(mockMessages);
 
   return (
-    <SafeAreaView style={backgroundStyle}>
-      <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={backgroundStyle.backgroundColor}
-      />
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        style={backgroundStyle}>
-        <Header />
-        <View
-          style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
-          }}>
-          <Section title="Step One">
-            Edit <Text style={styles.highlight}>App.tsx</Text> to change this
-            screen and then come back to see your edits.
-          </Section>
-          <Section title="See Your Changes">
-            <ReloadInstructions />
-          </Section>
-          <Section title="Debug">
-            <DebugInstructions />
-          </Section>
-          <Section title="Learn More">
-            Read the docs to discover what to do next:
-          </Section>
-          <LearnMoreLinks />
-        </View>
-      </ScrollView>
-    </SafeAreaView>
-  );
+    <View style={styles.container}>
+      <ChatList messages={messages} />
+      <InputBox
+        newText={newText}
+        setNewText={setNewText}
+        messages={messages}
+        setMessages={setMessages} />
+    </View>
+  )
+
 }
 
 const styles = StyleSheet.create({
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
+  container: {
+    flex: 1,
+    backgroundColor: 'gray'
   },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
+  chatItem: {
+    height: 40,
+    backgroundColor: 'white',
+    color: 'black'
   },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
+  chatItemWrapper: {
+    alignSelf: 'flex-start'
   },
-  highlight: {
-    fontWeight: '700',
+  chatItemWrapperUser: {
+    alignSelf: 'flex-end'
   },
-});
+  chatList: {
 
-export default App;
+  },
+  inputBox: {
+    flexDirection: 'row'
+  },
+  textBox: {
+    flex: 1,
+    backgroundColor: 'crimson'
+  },
+  sendButton: {
+    width: 60,
+    height: 60,
+    backgroundColor: 'orange'
+  }
+
+})
+
+export default ChatBox;
