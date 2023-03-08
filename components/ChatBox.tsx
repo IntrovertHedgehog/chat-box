@@ -44,12 +44,6 @@ const mockMessages: Message[] = [
   }
 ]
 
-const Header = () => {
-  return (
-    <Text style={styles.headerText} >Chat Bot Flunky Demo</Text>
-  )
-}
-
 const InputBox = ({ newText, setNewText, messages, setMessages }: InputBoxProps) => {
   return (
     <View style={styles.inputBox}>
@@ -118,7 +112,6 @@ const ChatBox = () => {
   return (
     <View style={styles.container}>
       <ImageBackground source={background} style={styles.background} resizeMode='cover'>
-        <Header />
         <ChatList messages={messages} />
         <InputBox
           newText={newText}
