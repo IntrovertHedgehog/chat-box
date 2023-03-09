@@ -19,12 +19,15 @@ const Login = ({ navigation }: LoginProps) => {
     const signIn = (email: string, password: string) => {
         auth()
             .signInWithEmailAndPassword(email, password)
-            .then(() => navigation.navigate('ChatBox'))
+            .then( credentials => {
+                console.log(credentials.user.uid);
+                navigation.navigate('ChatBox', {userId: credentials.user.uid})
+            })
             .catch(err => {
                 setErrMsg('PLEASE ENTER VAID CREDENTIALS');
                 setEmail('');
                 setPassword('');
-                console.error("Email or password is invalid ");
+                console.error("Email or password is invalid");
             })
     }
 
@@ -69,6 +72,9 @@ const Login = ({ navigation }: LoginProps) => {
                     />
                     <TouchableHighlight
                         onPress={() => {
+                            if (!(email && password)) {
+                                return setErrMsg('PLEASE ENTER EMAIL AND PASSWORD');
+                            }
                             signIn(email, password)
                         }}
                         accessibilityLabel="Login"

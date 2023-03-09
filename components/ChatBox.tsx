@@ -1,50 +1,138 @@
-import React, { useState } from 'react';
-import { Text, TextInput, View, StyleSheet, FlatList, ImageBackground } from 'react-native';
+import React, { useState, useEffect, useReducer, LegacyRef } from 'react';
+import { Text, TextInput, View, StyleSheet, FlatList, ImageBackground, ScrollView, Keyboard } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
+import database, { firebase } from '@react-native-firebase/database';
+import { PermissionsAndroid } from 'react-native';
 
 const background = { uri: 'https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png' }
 
-enum Sender {
-  User,
-  Bot
-}
-
 type Message = {
-  sender: Sender,
+  fromUser: boolean,
   content: string,
   time: Date
 }
+
+type ChatBoxProps = {
+  route: any,
+  navigation: any,
+}
+
+const reducer = (messages: Message[], newMessage: Message) => {
+  return [...messages, newMessage];
+}
+
+const ChatBox = ({ route, navigation }: ChatBoxProps) => {
+  const { userId } = route.params;
+  const [newText, setNewText] = useState('');
+  const [messages, dispatch] = useReducer(reducer, [])
+
+  PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
+
+  useEffect(() => {
+    const onValueChange = firebase
+      .app()
+      .database('https://rn-chatbox-90559-default-rtdb.asia-southeast1.firebasedatabase.app/')
+      .ref(`/messages/${userId}`)
+      .on('child_added', snapshot => {
+        console.log('something is wrong I can feel it:', userId, snapshot.val())
+        // setMessages([...messages, snapshot.val()])
+        dispatch(snapshot.val());
+      })
+    return () => firebase
+      .app()
+      .database('https://rn-chatbox-90559-default-rtdb.asia-southeast1.firebasedatabase.app/')
+      .ref(`/messages/${userId}`)
+      .off('value', onValueChange)
+    // return subscriber; // unsubscribe on unmount
+  }, []);
+
+
+
+  return (
+    <View style={styles.container}>
+      <ImageBackground source={background} style={styles.background} resizeMode='cover'>
+        <ChatList messages={messages} />
+        <InputBox
+          newText={newText}
+          setNewText={setNewText}
+          messages={messages}
+          setMessages={dispatch}
+          userId={userId} />
+      </ImageBackground>
+    </View>
+  )
+
+}
+
 
 type InputBoxProps = {
   newText: string,
   setNewText: (newText: string) => void,
   messages: Message[],
-  setMessages: (messages: Message[]) => void
+  setMessages: (messages: Message) => void,
+  userId: string
 }
 
 type chatListProps = {
   messages: Message[],
 }
 
-const mockMessages: Message[] = [
-  {
-    sender: Sender.User,
-    content: 'Hi how are you?',
-    time: new Date()
-  },
-  {
-    sender: Sender.Bot,
-    content: 'I\'m fine',
-    time: new Date()
-  },
-  {
-    sender: Sender.User,
-    content: 'OK!!',
-    time: new Date()
-  }
+const botMessages = [
+  "Look",
+  "If you had one shot, or one opportunity",
+  "To seize everything you ever wanted",
+  "One moment",
+  "Would you capture it or just let it slip?",
+  "Yo",
+  "His palms are sweaty, knees weak, arms are heavy",
+  "There's vomit on his sweater already, mom's spaghetti",
+  "He's nervous, but on the surface he looks calm and ready to drop bombs",
+  "But he keeps on forgetting what he wrote down, the whole crowd goes so loud",
+  "He opens his mouth, but the words won't come out",
+  "He's choking how, everybody's joking now",
+  "The clock's run out, time's up, over, blaow!",
 ]
 
-const InputBox = ({ newText, setNewText, messages, setMessages }: InputBoxProps) => {
+let [curBot, nBot] = [0, botMessages.length]
+
+const nextBotMessage = () => {
+  return botMessages[(curBot++) % nBot];
+}
+
+const InputBox = ({ newText, setNewText, messages, setMessages, userId }: InputBoxProps) => {
+
+  const sendMessage = () => {
+    if (!newText) return;
+
+    firebase
+      .app()
+      .database('https://rn-chatbox-90559-default-rtdb.asia-southeast1.firebasedatabase.app/')
+      .ref(`/messages/${userId}`)
+      .push()
+      .set({
+        fromUser: true,
+        content: newText,
+        time: Date.now()
+      })
+      .then(() => console.log(`New message pushed: ${newText}`));
+
+    firebase
+      .app()
+      .database('https://rn-chatbox-90559-default-rtdb.asia-southeast1.firebasedatabase.app/')
+      .ref(`/messages/${userId}`)
+      .push()
+      .set({
+        fromUser: false,
+        content: nextBotMessage(),
+        time: Date.now()
+      })
+      .then(() => console.log(`New message pushed: ${newText}`));
+
+    setNewText('');
+  }
+
+  let textRef: TextInput | null;
+
   return (
     <View style={styles.inputBox}>
       <View style={styles.textBoxPadder}></View>
@@ -54,6 +142,10 @@ const InputBox = ({ newText, setNewText, messages, setMessages }: InputBoxProps)
         onChangeText={setNewText}
         style={styles.textBox}
         placeholderTextColor={theme.gray}
+        returnKeyType='send'
+        ref={ref => { textRef = ref }}
+        onSubmitEditing={sendMessage}
+        blurOnSubmit={false}
       />
       <View
         style={styles.sendButton}
@@ -65,14 +157,7 @@ const InputBox = ({ newText, setNewText, messages, setMessages }: InputBoxProps)
           style={{
             alignSelf: 'center'
           }}
-          onPress={() => {
-            setMessages([...messages, {
-              sender: Sender.User,
-              content: newText,
-              time: new Date()
-            }]);
-            setNewText('')
-          }}
+          onPress={sendMessage}
         >
         </Icon>
       </View>
@@ -85,9 +170,9 @@ const ChatItem = (message: Message) => {
     <View style={styles.chatRow}>
       <View style={
         [styles.chatItemWrapper,
-        message.sender == Sender.User && styles.chatItemWrapperUser]}
+        message.fromUser && styles.chatItemWrapperUser]}
       >
-        <Text style={[styles.chatItem, message.sender == Sender.User && styles.chatItemUser]}>
+        <Text style={[styles.chatItem, message.fromUser && styles.chatItemUser]}>
           {message.content}
         </Text>
       </View>
@@ -96,32 +181,16 @@ const ChatItem = (message: Message) => {
 }
 
 const ChatList = ({ messages }: chatListProps) => {
+  let scrollView: FlatList<Message> | null;
   return (
     <FlatList
-      style={styles.chatList}
+      // style={styles.chatList}
+      ref={ref => { scrollView = ref }}
+      onContentSizeChange={() => { if (messages.length) scrollView?.scrollToEnd() }}
       data={messages}
       renderItem={({ item }) => ChatItem(item)}
     />
   )
-}
-
-const ChatBox = () => {
-  const [newText, setNewText] = useState('');
-  const [messages, setMessages] = useState<Message[]>(mockMessages);
-
-  return (
-    <View style={styles.container}>
-      <ImageBackground source={background} style={styles.background} resizeMode='cover'>
-        <ChatList messages={messages} />
-        <InputBox
-          newText={newText}
-          setNewText={setNewText}
-          messages={messages}
-          setMessages={setMessages} />
-      </ImageBackground>
-    </View>
-  )
-
 }
 
 const theme = {

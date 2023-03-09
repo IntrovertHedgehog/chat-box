@@ -18,6 +18,9 @@ export default function App() {
           component={Login} />
         <Stack.Screen
           name='ChatBox'
+          options={{
+            headerTitle:"Eminem Bot 🤖"
+          }}
           component={ChatBox} />
       </Stack.Navigator>
     </NavigationContainer>
